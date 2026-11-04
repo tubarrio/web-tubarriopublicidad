@@ -35,12 +35,18 @@ if [ ! -f "$CONFIG" ]; then
 else
   BD_NOMBRE="$(valor DB_NAME)"; BD_USUARIO="$(valor DB_USER)"; BD_CLAVE="$(valor DB_PASSWORD)"; BD_SERVIDOR="$(valor DB_HOST)"
   BD_SERVIDOR="${BD_SERVIDOR:-localhost}"
+  # WordPress puede guardar «servidor:puerto» (p. ej. 127.0.0.1:3306): mysqldump quiere el puerto aparte.
+  BD_PUERTO=""
+  case "$BD_SERVIDOR" in
+    /*) ;;                                            # ruta de socket: se deja tal cual
+    *:*) BD_PUERTO="${BD_SERVIDOR##*:}"; BD_SERVIDOR="${BD_SERVIDOR%:*}" ;;
+  esac
   if [ -z "$BD_NOMBRE" ] || [ -z "$BD_USUARIO" ]; then
     echo "No he podido leer DB_NAME / DB_USER de wp-config.php. Avisa antes de seguir."; MALO=1
   else
     echo "Base de datos: $BD_NOMBRE   usuario: $BD_USUARIO   servidor: $BD_SERVIDOR   (contraseña: leída, no se muestra)"
     SQL="$DESTINO/wordpress-bd-$FECHA.sql.gz"
-    MYSQL_PWD="$BD_CLAVE" mysqldump --no-tablespaces --single-transaction -h "$BD_SERVIDOR" -u "$BD_USUARIO" "$BD_NOMBRE" 2>"$DESTINO/.error-mysqldump.txt" | gzip > "$SQL"
+    MYSQL_PWD="$BD_CLAVE" mysqldump --no-tablespaces --single-transaction -h "$BD_SERVIDOR" ${BD_PUERTO:+-P "$BD_PUERTO"} -u "$BD_USUARIO" "$BD_NOMBRE" 2>"$DESTINO/.error-mysqldump.txt" | gzip > "$SQL"
     if [ "${PIPESTATUS[0]}" = "0" ] && gzip -t "$SQL" && zcat "$SQL" | tail -3 | grep -q "Dump completed"; then
       echo "OK  $(ls -lh "$SQL" | awk '{print $5}')  $SQL  (termina en «Dump completed»)"
     else
