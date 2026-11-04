@@ -1,0 +1,49 @@
+# Reglas nginx para publicar la portada nueva junto a WordPress (CloudPanel: nginx, no Apache).
+#
+# Son OPCIONALES en el sentido de que la portada ya se ve en https://tubarriopublicidad.es/portada/
+# sin tocar nginx. Con estas reglas, además:
+#   - la dirección principal «/» muestra la portada nueva (la dirección no cambia),
+#   - la portada lleva cabeceras de seguridad y caché,
+#   - WordPress (/wp-admin, /wp-login.php, el resto de páginas y /.well-known) NO se toca.
+#
+# Dónde se pegan: CloudPanel -> Sites -> el sitio www.tubarriopublicidad.es -> pestaña «Vhost»,
+# dentro del bloque «server { ... }», DESPUÉS de las líneas que ya hubiera (no borres nada).
+# Paso a paso en PUBLICAR.md.
+#
+# Nota: las cabeceras solo se ponen aquí (rutas de la portada). Si se pusieran a nivel de todo
+# el sitio, también afectarían a WordPress (/wp-admin) y podrían romperlo: la política de
+# seguridad (CSP) de abajo no permite scripts ni estilos «inline», que WordPress sí usa.
+
+# --- INICIO DE LAS REGLAS (copiar desde aquí) ---
+
+# La dirección principal muestra la portada nueva. «Rewrite interno»: el navegador sigue en «/».
+location = / {
+    rewrite ^ /portada/index.html last;
+}
+
+# /portada sin barra final -> con barra
+location = /portada {
+    return 301 /portada/;
+}
+
+# La portada. «^~» hace que CloudPanel no aplique encima sus reglas generales de ficheros estáticos.
+location ^~ /portada/ {
+    try_files $uri $uri/ =404;
+    index index.html;
+
+    # Política de seguridad: solo ficheros de esta web, y fotos/datos de Wildposting y Cartelería.
+    add_header Content-Security-Policy "default-src 'self'; img-src 'self' data: https://wildposting.tubarriopublicidad.es https://carteleria.tubarriopublicidad.es; connect-src https://wildposting.tubarriopublicidad.es https://carteleria.tubarriopublicidad.es; frame-ancestors 'none'; base-uri 'self'" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+    # Caché: una hora. Los ficheros no llevan versión en el nombre; así un cambio se ve pronto.
+    # (Cuando lo tengas estable puedes subirlo, p. ej. a 1 semana para /portada/assets/img/.)
+    add_header Cache-Control "public, max-age=3600" always;
+}
+
+# --- FIN DE LAS REGLAS ---
+
+# Cómo volver atrás: borra estas reglas del Vhost (o comenta cada línea con #) y recarga nginx.
+# WordPress vuelve a mostrar su portada de siempre en «/».
