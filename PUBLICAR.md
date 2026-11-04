@@ -1,5 +1,7 @@
 # Cómo publicar la web principal (tubarriopublicidad.es)
 
+> **Dirección principal: `https://www.tubarriopublicidad.es/`.** El servidor ya redirige `tubarriopublicidad.es` (sin www) a `www.` (así lo tiene CloudPanel); quien escriba la dirección sin www llega igualmente. Las direcciones de la web (canonical, sitemap) usan `www`.
+
 Léelo entero antes de empezar. Cada orden va **en una sola línea**: cópiala entera y pégala. Las que dicen
 **PowerShell** van en la ventana de tu PC; las que dicen **Ubuntu** van después de entrar en el servidor.
 

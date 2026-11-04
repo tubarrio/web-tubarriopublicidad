@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://tubarriopublicidad.es/sitemap.xml
+Sitemap: https://www.tubarriopublicidad.es/sitemap.xml

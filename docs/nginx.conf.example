@@ -6,6 +6,8 @@
 #   - la portada lleva cabeceras de seguridad y caché,
 #   - WordPress (/wp-admin, /wp-login.php, el resto de páginas y /.well-known) NO se toca.
 #
+# IMPORTANTE (servidor de Tu Barrio Publicidad): el vhost tiene TRES bloques «server»: (1) el de «tubarriopublicidad.es» que redirige a www, (2) el de «www…» en 80/443 con la línea «root» (AQUÍ va la regla, solo aquí) y (3) el de puerto 8080 (backend de Varnish; NO se toca).
+#
 # Dónde se pegan: CloudPanel -> Sites -> el sitio www.tubarriopublicidad.es -> pestaña «Vhost»,
 # dentro del bloque «server { ... }», DESPUÉS de las líneas que ya hubiera (no borres nada).
 # Paso a paso en PUBLICAR.md.
