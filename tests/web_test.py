@@ -62,7 +62,7 @@ def jpg(color, texto):
     b = io.BytesIO(); im.save(b, 'JPEG'); return b.getvalue()
 
 CORS = {'Access-Control-Allow-Origin': '*'}
-def rutas(page, modo, n=3):
+def rutas(page, modo, n=3, fotos_extra=None):
     """modo: ok | vacio | roto | caido | unarota"""
     def json_(host):
         def f(route):
@@ -72,6 +72,7 @@ def rutas(page, modo, n=3):
             fotos = [{'url': host + '/demo/f/%d.jpg' % i, 'miniatura': host + '/demo/m/%d.jpg' % i, 'punto': 'Calle Mayor %d' % (i + 1),
                       'ciudad': 'Ciudad de prueba', 'fecha': '2026-10-%02d 10:30:00' % (i + 10), 'comentario': 'Foto de prueba <b>%d</b>' % i}
                      for i in range(n)]
+            if fotos_extra is not None: fotos = [dict(x, url=host + '/demo/f/%d.jpg' % i, miniatura=host + '/demo/m/%d.jpg' % i) for i, x in enumerate(fotos_extra)]
             if modo == 'unarota': fotos[1]['miniatura'] = host + '/demo/m/rota.jpg'
             route.fulfill(status=200, headers=CORS, content_type='application/json', body=json.dumps({'fotos': fotos}))
         return f
@@ -160,8 +161,20 @@ def pagina_ok(b):
     ok('Calle Mayor' in alt and '<b>' in alt, 'alt útil con punto y comentario (texto literal, sin HTML): ' + alt)
     ok(pg.locator('.carrusel .slide.real b').count() == 0, 'el comentario no se interpreta como HTML')
     ok(pg.locator('.pie-foto').first.inner_text().startswith('Calle Mayor 1'), 'pie de foto: ' + pg.locator('.pie-foto').first.inner_text())
-    ok('octubre' in pg.locator('.pie-foto').first.inner_text(), 'fecha en español')
+    ok('octubre' not in pg.locator('.pie-foto').first.inner_text() and '2026' not in pg.locator('.pie-foto').first.inner_text(), 'sin fecha en el pie')
     ok(pg.locator('.carrusel img[src^="https://wildposting"]').count() == 3 and pg.locator('.carrusel img[src^="https://carteleria"]').count() == 3, 'cada carrusel usa las fotos de su app')
+    for k, (nom, host) in enumerate((('Wildposting', 'wildposting'), ('Cartelería', 'carteleria'))):
+        t = pg.locator('.tarjeta').nth(k)
+        for sel in ('.enlace-nombre', '.boton-mini'):
+            a = t.locator(sel)
+            ok(a.get_attribute('href') == 'https://%s.tubarriopublicidad.es/demo' % host and a.get_attribute('target') == '_blank' and 'noopener' in a.get_attribute('rel'), '%s %s: enlace a su demo en pestaña nueva' % (nom, sel))
+            ok(a.bounding_box()['height'] >= 43.5, '%s %s: objetivo táctil >= 44 px' % (nom, sel))
+        ok(t.locator('.enlace-nombre').get_attribute('aria-label').startswith('Ver el ejemplo en vivo de ' + nom), 'aria-label del nombre')
+        ok(t.locator('.boton.boton-sec').count() == 1 and 'Sin registro' in t.locator('.nota').inner_text(), 'se mantienen el botón grande y la frase')
+    n0, m0 = pg.locator('.tarjeta').nth(0).locator('.enlace-nombre').bounding_box(), pg.locator('.tarjeta').nth(0).locator('.boton-mini').bounding_box()
+    ok(abs((n0['y'] + n0['height'] / 2) - (m0['y'] + m0['height'] / 2)) < 4, 'en PC el botón pequeño va en la misma fila que el nombre')
+    pg.locator('.tarjeta').nth(0).locator('.enlace-nombre').focus()
+    ok(pg.evaluate("getComputedStyle(document.activeElement).outlineStyle") != 'none', 'foco visible en el nombre')
     pg.screenshot(path=CAPT + '/escritorio-1280-completa.png', full_page=True)
     # botones
     ok(activa(pg, 0) == 0, 'empieza en la primera')
@@ -242,6 +255,40 @@ def pagina_ok(b):
     swipe(80, 300); ok(activa(pg, 0) == a, 'deslizar a la derecha = anterior')
     ok(pg.evaluate('window.__csp') == [], 'móvil: sin violaciones de CSP')
     ok(not errs and not pe, 'móvil: sin errores de consola: %s %s' % (errs, pe))
+    ctx.close()
+
+def pies(b):
+    print('Pie de foto: con pie, compuesto en cliente, JSON antiguo')
+    casos = [
+        {'pie': 'Cubo elecciones · Granada · Albolote · Zaidín', 'punto': 'X', 'ciudad': 'Y', 'fecha': '2026-10-10 10:00:00', 'comentario': 'c <i>1</i>'},
+        {'punto': 'Discos Bora Bora tienda de discos', 'categoria': 'Tienda de discos', 'ciudad': 'Granada', 'pueblo': 'Granada', 'barrio': 'Centro', 'fecha': '2026-10-11 10:00:00'},
+        {'punto': 'Bar Paco', 'categoria': 'Bar', 'ciudad': 'Granada', 'pueblo': '', 'barrio': None},
+        {'punto': 'Calle Mayor 4', 'ciudad': 'Ciudad de prueba', 'fecha': '2026-10-12 10:00:00', 'comentario': 'Foto <b>3</b>'},
+    ]
+    ctx, pg, errs, pe = nueva(b, 1280)
+    rutas(pg, 'ok', n=4, fotos_extra=casos)
+    pg.goto(BASE + '/'); pg.wait_for_load_state('networkidle'); pg.wait_for_selector('.carrusel.con-fotos .slide.real')
+    p = pg.locator('.carrusel').nth(0).locator('.pie-foto').all_text_contents()
+    ok(p[0] == 'Cubo elecciones · Granada · Albolote · Zaidín', 'usa el pie de la app tal cual: ' + p[0])
+    ok(pg.locator('.carrusel').nth(0).locator('.slide.real img').nth(0).get_attribute('alt').startswith('Wildposting: Cubo elecciones · Granada') or 'Cubo elecciones · Granada · Albolote' in pg.locator('.carrusel').nth(0).locator('.slide.real img').nth(0).get_attribute('alt'), 'el alt usa el pie')
+    ok(p[1] == 'Discos Bora Bora tienda de discos · Granada · Centro', 'categoría contenida en el nombre (sin tildes/mayúsculas) y duplicados omitidos: ' + p[1])
+    ok(p[2] == 'Bar Paco · Granada', 'sin categoría repetida ni pueblo/barrio vacíos: ' + p[2])
+    ok(p[3] == 'Calle Mayor 4 · Ciudad de prueba', 'JSON antiguo (sin pie ni categoría): ' + p[3])
+    ok(all('2026' not in t and 'octubre' not in t for t in p), 'ningún pie lleva fecha')
+    ok(pg.locator('.carrusel .slide.real b, .carrusel .slide.real i').count() == 0, 'todo es texto, nunca HTML')
+    pg.screenshot(path=CAPT + '/escritorio-1280-pies.png')
+    ctx.close()
+    ctx, pg, errs, pe = nueva(b, 390, 844)
+    rutas(pg, 'ok', n=4, fotos_extra=casos)
+    pg.goto(BASE + '/'); pg.wait_for_load_state('networkidle'); pg.wait_for_selector('.carrusel.con-fotos .slide.real')
+    pg.locator('.carrusel').nth(0).scroll_into_view_if_needed()
+    pg.screenshot(path=CAPT + '/movil-390-pies.png')
+    ok(pg.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth'), 'sin scroll horizontal a 390 px con pies largos')
+    pg.locator('.titulo-fila').first.scroll_into_view_if_needed(); pg.screenshot(path=CAPT + '/movil-390-titulo-tarjeta.png')
+    for sel in ('.enlace-nombre', '.boton-mini'):
+        bb = pg.locator('.tarjeta').nth(0).locator(sel).bounding_box()
+        ok(bb['height'] >= 43.5 and bb['x'] + bb['width'] <= 390, 'móvil: %s >= 44 px y dentro de pantalla' % sel)
+    ok(pg.evaluate('window.__csp') == [] and not pe, 'sin CSP ni errores de JS')
     ctx.close()
 
 def escritorio_y_anchos(b):
@@ -335,7 +382,7 @@ def main():
     srv = servir()
     with sync_playwright() as p:
         b = p.chromium.launch(executable_path=CHROMIUM, args=['--no-sandbox', '--disable-gpu'])
-        for f in (pagina_ok, escritorio_y_anchos, fallbacks, sin_js_y_movimiento, telefono):
+        for f in (pagina_ok, pies, escritorio_y_anchos, fallbacks, sin_js_y_movimiento, telefono):
             f(b)
         b.close()
     srv.shutdown()

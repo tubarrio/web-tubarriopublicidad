@@ -118,11 +118,26 @@
       if (!parar) timer = setInterval(function () { ir(1); }, INTERVALO);
     }
 
-    function fecha(v) {
-      try {
-        var d = new Date(String(v).replace(' ', 'T'));
-        return isNaN(d) ? '' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
-      } catch (e) { return ''; }
+    function norm(t) {
+      var s = String(t == null ? '' : t);
+      try { s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) {}
+      return s.toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+
+    // Pie de foto (siempre texto, sin fecha): el campo «pie» de la app; si no viene, se compone aquí.
+    function pieDe(f) {
+      if (typeof f.pie === 'string' && f.pie.trim()) return f.pie.trim();
+      var punto = String(f.punto == null ? '' : f.punto).trim();
+      var cat = String(f.categoria == null ? '' : f.categoria).trim();
+      if (cat && punto && norm(punto).indexOf(norm(cat)) >= 0) cat = '';
+      var vistos = [], partes = [];
+      [punto, cat, f.ciudad, f.pueblo, f.barrio].forEach(function (v) {
+        v = String(v == null ? '' : v).trim();
+        var k = norm(v);
+        if (!k || vistos.indexOf(k) >= 0) return;
+        vistos.push(k); partes.push(v);
+      });
+      return partes.join(' · ');
     }
 
     function diapositiva(f, base, tema, n) {
@@ -131,8 +146,8 @@
       if (src.protocol !== 'https:') return null;
       var li = el('li', 'slide real');
       var img = el('img');
-      var donde = [f.punto, f.ciudad].filter(Boolean).join(', ');
-      var alt = tema + (donde ? ': ' + donde : '') + (f.comentario ? '. ' + String(f.comentario).slice(0, 120) : '');
+      var pie = pieDe(f);
+      var alt = tema + (pie ? ': ' + pie : '') + (f.comentario ? '. ' + String(f.comentario).slice(0, 120) : '');
       img.alt = alt || tema + ': foto de la campaña de ejemplo';
       img.width = 800; img.height = 600;
       if (n > 0) img.loading = 'lazy';
@@ -146,7 +161,6 @@
       });
       img.src = src.href;
       li.appendChild(img);
-      var pie = [f.punto, f.ciudad, fecha(f.fecha)].filter(Boolean).join(' · ');
       if (pie) li.appendChild(el('p', 'pie-foto', pie));
       return li;
     }

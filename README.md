@@ -54,12 +54,16 @@ no se puedan cumplir. Si cambias el título o la descripción, cámbialos tambi�
   nada. Al rellenarlo aparece «También por teléfono o WhatsApp: ...» con enlaces `tel:` y `wa.me`. No hace falta tocar
   el HTML. (El teléfono **no** está en el JSON-LD a propósito; si lo quieres allí, añádelo a mano.)
 
+## Ejemplo en vivo
+
+En cada tarjeta, el nombre («Wildposting», «Cartelería») es un enlace a su `/demo` (pestaña nueva, `rel="noopener"`, flechita ↗), con un botón pequeño «Ver ejemplo en vivo» en la misma fila (debajo del nombre si no cabe en móvil); abajo se mantiene el botón grande con «Sin registro…». Objetivos táctiles de al menos 44 px.
+
 ## Cambiar fotos y carruseles
 
 - Las fotos reales salen de `https://wildposting.tubarriopublicidad.es/demo/fotos.json` y
   `https://carteleria.tubarriopublicidad.es/demo/fotos.json` (atributo `data-fotos` de cada `.carrusel`). Formato:
-  `{fotos:[{url, miniatura, punto, ciudad, fecha, comentario}]}`. Se usa la `miniatura` (si no hay, la `url`), hasta
-  `MAX_FOTOS` (8). El pie de cada foto es «punto · ciudad · fecha» y el `alt` lleva punto, ciudad y comentario. Todo se
+  `{fotos:[{url, miniatura, punto, categoria, ciudad, pueblo, barrio, pie, comentario}]}` (`fecha` ya no se usa). Se usa la `miniatura` (si no hay, la `url`), hasta
+  `MAX_FOTOS` (8). El pie de cada foto (sin fecha) es el campo `pie` que componen las apps (texto plano, partes separadas por « · »); si no viene (apps sin actualizar), la web lo compone con `punto`, `categoria` (solo si no está ya en `punto`, sin tildes ni mayúsculas), `ciudad`, `pueblo` y `barrio`, sin vacíos ni duplicados. El `alt` lleva ese pie y el comentario. Todo se
   inserta como texto, nunca como HTML.
 - **Si el JSON falla, tarda más de 6 s o viene vacío**, se queda el relleno: tres ilustraciones propias por servicio
   (`public/assets/img/relleno-wildposting-N.svg`: pared llena de carteles; `relleno-carteleria-N.svg`: escaparate).
