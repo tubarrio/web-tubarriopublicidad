@@ -9,7 +9,7 @@ ni formularios, ni analítica. Cómo se publica: [`PUBLICAR.md`](PUBLICAR.md).
 
 | Ruta | Para qué |
 |---|---|
-| `public/index.html` | La portada (cabecera, servicios, cómo funciona, contacto, pie) y los datos para buscadores (JSON-LD) |
+| `public/index.html` | La portada (cabecera con las dos entradas a los mapas, servicios, cómo funciona, contacto, pie) y los datos para buscadores (JSON-LD) |
 | `public/aviso-legal.html` | Aviso legal con `[RAZÓN SOCIAL]`, `[NIF]`, `[DOMICILIO]` por rellenar |
 | `public/assets/web.css` | Todo el diseño. Colores en `:root` (sacados del logo) |
 | `public/assets/web.js` | Carrusel y contacto. Unos 8,5 KB (3 KB comprimido). **Configuración al principio del fichero** |
@@ -56,7 +56,20 @@ no se puedan cumplir. Si cambias el título o la descripción, cámbialos tambi�
 
 ## Ejemplo en vivo
 
-En cada tarjeta, el nombre («Wildposting», «Cartelería») es un enlace a su `/demo` (pestaña nueva, `rel="noopener"`, flechita ↗), con un botón pequeño «Ver ejemplo en vivo» en la misma fila (debajo del nombre si no cabe en móvil); abajo se mantiene el botón grande con «Sin registro…». Objetivos táctiles de al menos 44 px.
+Lo principal de la portada son los mapas de seguimiento online. En la **cabecera** (franja azul «Sigue tu ruta online»)
+hay dos entradas grandes, una por app, que son enlaces completos (`a.entrada`, pestaña nueva, `rel="noopener"`, `aria-label` claro):
+
+| Entrada | Servicio debajo | Enlace |
+|---|---|---|
+| Mapa de seguimiento online · Wildposting | Fijación a pie de calle con engrudo | `https://wildposting.tubarriopublicidad.es/demo` |
+| Mapa de seguimiento online · Cartelería | Fijación de cartelería en comercios y espacios habituales | `https://carteleria.tubarriopublicidad.es/demo` |
+
+Cada una lleva la etiqueta «Ejemplo en vivo» y, bajo las dos, la frase «Mira en directo cómo ve un cliente su campaña:
+ejemplo real, sin registrarte.». Ya **no hay** botón «Conoce nuestros servicios».
+
+En las tarjetas de «Nuestros servicios» el nombre («Wildposting», «Cartelería», con flechita ↗) sigue siendo un enlace a su
+`/demo` y abajo se mantiene el botón «Ver ejemplo en vivo» con «Sin registro…». Se quitó el botón pequeño que repetía lo mismo
+junto al nombre (quedaba el mismo enlace cuatro veces por servicio). Objetivos táctiles de al menos 44 px.
 
 ## Cambiar fotos y carruseles
 
@@ -101,14 +114,14 @@ python3 tests/web_test.py [carpeta_de_capturas]
 
 Sirve `public/` en `http://127.0.0.1:8765` con la CSP de producción (`/` y `/portada/…`, como hará nginx) y simula
 Wildposting y Cartelería con `page.route` (`fotos.json` con CORS y fotos de prueba generadas). Comprueba:
-HTML (sin `style=`, `onclick=`, `<script>` inline, ni dominios externos; `alt`, ancho y alto; canonical, Open Graph,
+la cabecera (las dos entradas con sus textos exactos, URLs, pestaña nueva, tamaño táctil, foco visible, contraste AA, una al lado de la otra en PC y apiladas en móvil, y que «Conoce nuestros servicios» ya no existe), HTML (sin `style=`, `onclick=`, `<script>` inline, ni dominios externos; `alt`, ancho y alto; canonical, Open Graph,
 JSON-LD sin dirección ni teléfono; `web.js` < 10 KB), que todos los ficheros enlazados existen desde `/` y desde
 `/portada/`, el carrusel (siguiente, anterior, puntos, teclado, deslizar con el dedo, avance automático, pausa con
 ratón, foco y botón, `prefers-reduced-motion`), el relleno cuando el JSON falla (red caída, error 500, vacío), una
 foto que no carga, sin JavaScript, enlaces (URLs, `_blank` + `noopener`, `mailto` con asunto), el teléfono oculto
 (y visible si se rellena), sin desplazamiento horizontal a 360, 390, 768, 1024, 1280 y 1440 px, CLS < 0,01, y que no
 haya errores de consola ni violaciones de CSP. Las capturas (390 y 1280 px) quedan en la carpeta indicada
-(por defecto `tests/capturas/`, que no se sube a git). Termina con `TODO BIEN` o la lista de fallos.
+(390, 768 y 1280 px; por defecto `tests/capturas/`, que no se sube a git). Termina con `TODO BIEN` o la lista de fallos.
 
 También se comprobó `docs/nginx.conf.example` con un nginx real (1.24) delante de un sitio de mentira estilo WordPress:
 `/` y `/portada/…` salen con las cabeceras, y `/wp-login.php`, `/wp-admin/`, otros ficheros y páginas no las llevan.
