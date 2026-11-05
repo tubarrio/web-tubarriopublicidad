@@ -148,6 +148,71 @@ def estatico():
     ok(CSP in ng, 'la CSP de docs/nginx.conf.example es la misma que usan estas pruebas')
 
 # ------------------------------------------------------------------ navegador
+
+ENTRADAS = [
+    ('entrada-wildposting', 'Mapa de seguimiento online · Wildposting', 'Fijación a pie de calle con engrudo', WILD + '/demo'),
+    ('entrada-carteleria', 'Mapa de seguimiento online · Cartelería', 'Fijación de cartelería en comercios y espacios habituales', CART + '/demo'),
+]
+
+def hero(pg, ancho):
+    """Cabecera: dos entradas grandes a los mapas de ejemplo, sin el botón «Conoce nuestros servicios»."""
+    print('Cabecera con las dos entradas a los mapas (%d px)' % ancho)
+    pg.evaluate("window.scrollTo({top: 0, behavior: 'instant'})"); pg.mouse.move(2, 2); time.sleep(.3)
+    cab = pg.locator('header.portada')
+    ok('Conoce nuestros servicios' not in pg.inner_text('body'), 'ya no existe «Conoce nuestros servicios»')
+    ok(cab.locator('a[href="#servicios"]').count() == 0, 'la cabecera ya no tiene el botón que bajaba a #servicios')
+    ok(cab.locator('h1').inner_text() == 'Tu Barrio Publicidad', 'h1 «Tu Barrio Publicidad»')
+    ok(cab.locator('.sub').inner_text() == 'Servicios locales de diseño, impresión y distribución de publicidad', 'subtítulo de siempre')
+    ok(pg.locator('h1').count() == 1, 'un único h1')
+    ok(cab.locator('h2').inner_text() == 'Sigue tu ruta online', 'titular «Sigue tu ruta online»')
+    ok(cab.locator('.mapas-sub').inner_text().strip() != '', 'subtítulo del titular')
+    ok(cab.locator('.mapas-nota').inner_text() == 'Mira en directo cómo ve un cliente su campaña: ejemplo real, sin registrarte.', 'línea que aclara que es un ejemplo')
+    ok(cab.locator('a.entrada').count() == 2, 'dos entradas en la cabecera')
+    cajas = []
+    for id_, titulo, servicio, url in ENTRADAS:
+        a = pg.locator('#' + id_)
+        ok(' '.join(a.locator('.entrada-titulo').inner_text().split()) == titulo, 'texto exacto: ' + titulo)
+        ok(a.locator('.entrada-servicio').inner_text() == servicio, 'texto exacto: ' + servicio)
+        ok(a.locator('.entrada-etiqueta').text_content().strip() == 'Ejemplo en vivo', 'etiqueta «Ejemplo en vivo»')
+        ok(a.get_attribute('href') == url and a.get_attribute('target') == '_blank' and 'noopener' in a.get_attribute('rel'), 'URL de ' + id_ + ' y pestaña nueva con noopener: ' + a.get_attribute('href'))
+        lab = a.get_attribute('aria-label')
+        ok(titulo in lab and servicio in lab and 'pestaña nueva' in lab, 'aria-label claro (incluye el texto visible): ' + lab)
+        bb = a.bounding_box(); cajas.append(bb)
+        cta = a.locator('.entrada-cta').bounding_box()
+        ok(bb['height'] >= 44 and cta['height'] >= 44, '%s: objetivo táctil >= 44 px (%dx%d)' % (id_, bb['width'], bb['height']))
+        ok(bb['x'] >= 0 and bb['x'] + bb['width'] <= ancho, id_ + ': dentro de la pantalla')
+        a.focus()
+        ok(pg.evaluate("(() => { const s = getComputedStyle(document.activeElement); return s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) >= 3; })()"), id_ + ': foco visible con teclado')
+        pg.evaluate("document.activeElement.blur()")
+    if ancho >= 760:
+        ok(abs(cajas[0]['y'] - cajas[1]['y']) < 6 and cajas[1]['x'] > cajas[0]['x'] + cajas[0]['width'] - 1, 'escritorio: las dos entradas, una al lado de la otra')
+    else:
+        ok(cajas[1]['y'] > cajas[0]['y'] + cajas[0]['height'] - 1 and abs(cajas[0]['x'] - cajas[1]['x']) < 2, 'móvil: las dos entradas apiladas')
+    # arriba del todo: se ven sin bajar
+    ok(cajas[0]['y'] < pg.evaluate('innerHeight'), 'la primera entrada se ve sin hacer scroll')
+    # contraste AA de los textos principales de las entradas (cálculo propio)
+    pares = pg.evaluate(r"""() => { const q = s => getComputedStyle(document.querySelector(s));
+        return ['.entrada-titulo', '.entrada-servicio', '.entrada-cta', '.entrada-etiqueta', '.mapas h2', '.mapas-sub', '.mapas-nota'].map(s => {
+            const c = q(s); let f = c.color, bgc = c.backgroundColor, e = document.querySelector(s);
+            while (e && /rgba\(0, 0, 0, 0\)|transparent/.test(bgc)) { e = e.parentElement; bgc = getComputedStyle(e).backgroundColor; }
+            return [s, f, bgc, parseFloat(c.fontSize), c.fontWeight]; }); }""")
+    def lum(c):
+        r, g, b = [int(x) / 255 for x in re.findall(r'\d+', c)[:3]]
+        f = lambda v: v / 12.92 if v <= .03928 else ((v + .055) / 1.055) ** 2.4
+        return .2126 * f(r) + .7152 * f(g) + .0722 * f(b)
+    for sel, fg, bg, tam, peso in pares:
+        l1, l2 = sorted((lum(fg), lum(bg)), reverse=True)
+        ratio = (l1 + .05) / (l2 + .05)
+        ok(ratio >= 4.5, 'contraste AA %s: %.1f:1' % (sel, ratio))
+    ok(pg.locator('.flecha').count() == pg.locator('.carrusel .flecha').count(), 'las flechas posicionadas del carrusel no se usan fuera de él (ya salían círculos sueltos por la página)')
+    # sin duplicar: cada demo se enlaza como mucho 3 veces en toda la página (entrada, nombre y botón grande)
+    for _, _, _, url in ENTRADAS:
+        n = pg.locator('a[href="%s"]' % url).count()
+        ok(n == 3, 'la demo %s se enlaza 3 veces (entrada, nombre de la tarjeta y botón grande): %d' % (url, n))
+
+def hero_orden(pg):
+    ok(pg.evaluate("""() => { const q = s => document.querySelector(s).getBoundingClientRect().top;
+        return q('header .logo') < q('.mapas h2') && q('.mapas h2') < q('#entrada-wildposting') && q('#entrada-carteleria') < q('#servicios'); }"""), 'orden: logo, titular, entradas y después «Nuestros servicios»')
 def pagina_ok(b):
     print('Escritorio 1280 px, fotos reales')
     ctx, pg, errs, pe = nueva(b, 1280)
@@ -165,17 +230,16 @@ def pagina_ok(b):
     ok(pg.locator('.carrusel img[src^="https://wildposting"]').count() == 3 and pg.locator('.carrusel img[src^="https://carteleria"]').count() == 3, 'cada carrusel usa las fotos de su app')
     for k, (nom, host) in enumerate((('Wildposting', 'wildposting'), ('Cartelería', 'carteleria'))):
         t = pg.locator('.tarjeta').nth(k)
-        for sel in ('.enlace-nombre', '.boton-mini'):
-            a = t.locator(sel)
-            ok(a.get_attribute('href') == 'https://%s.tubarriopublicidad.es/demo' % host and a.get_attribute('target') == '_blank' and 'noopener' in a.get_attribute('rel'), '%s %s: enlace a su demo en pestaña nueva' % (nom, sel))
-            ok(a.bounding_box()['height'] >= 43.5, '%s %s: objetivo táctil >= 44 px' % (nom, sel))
+        a = t.locator('.enlace-nombre')
+        ok(a.get_attribute('href') == 'https://%s.tubarriopublicidad.es/demo' % host and a.get_attribute('target') == '_blank' and 'noopener' in a.get_attribute('rel'), '%s: el nombre enlaza a su demo en pestaña nueva' % nom)
+        ok(a.bounding_box()['height'] >= 43.5, '%s: objetivo táctil del nombre >= 44 px' % nom)
+        ok(t.locator('.boton-mini').count() == 0, '%s: ya no hay botón pequeño repetido (lo cubren la entrada de la cabecera, el nombre y el botón grande)' % nom)
         ok(t.locator('.enlace-nombre').get_attribute('aria-label').startswith('Ver el ejemplo en vivo de ' + nom), 'aria-label del nombre')
         ok(t.locator('.boton.boton-sec').count() == 1 and 'Sin registro' in t.locator('.nota').inner_text(), 'se mantienen el botón grande y la frase')
-    n0, m0 = pg.locator('.tarjeta').nth(0).locator('.enlace-nombre').bounding_box(), pg.locator('.tarjeta').nth(0).locator('.boton-mini').bounding_box()
-    ok(abs((n0['y'] + n0['height'] / 2) - (m0['y'] + m0['height'] / 2)) < 4, 'en PC el botón pequeño va en la misma fila que el nombre')
     pg.locator('.tarjeta').nth(0).locator('.enlace-nombre').focus()
     ok(pg.evaluate("getComputedStyle(document.activeElement).outlineStyle") != 'none', 'foco visible en el nombre')
     pg.screenshot(path=CAPT + '/escritorio-1280-completa.png', full_page=True)
+    hero(pg, 1280); hero_orden(pg)
     # botones
     ok(activa(pg, 0) == 0, 'empieza en la primera')
     pg.locator('.carrusel').nth(0).locator('.sig').click(); ok(activa(pg, 0) == 1, 'siguiente')
@@ -197,9 +261,6 @@ def pagina_ok(b):
     ok(pg.locator('text=Sin registro: es el seguimiento real de una campaña de ejemplo').count() == 2, 'frase «Sin registro…» bajo cada ejemplo')
     ok(pg.get_attribute('#pide-presupuesto', 'href') == 'mailto:tubarriopublicidad@gmail.com?subject=Quiero%20presupuesto', 'mailto del botón Pide presupuesto')
     ok(not pg.is_visible('#bloque-telefono'), 'teléfono/WhatsApp oculto mientras no se rellene')
-    ok(pg.get_attribute('a.boton', 'href') == '#servicios', '«Conoce nuestros servicios» baja a #servicios')
-    pg.click('a.boton >> nth=0'); time.sleep(.6)
-    ok(pg.evaluate("document.getElementById('servicios').getBoundingClientRect().top") < 200, 'el botón de la cabecera baja a la sección')
     # todos los ficheros enlazados existen (desde / y desde /portada/)
     for desde in ('/', '/portada/'):
         pg.goto(BASE + desde); pg.wait_for_load_state('load')
@@ -231,6 +292,7 @@ def pagina_ok(b):
     ctx, pg, errs, pe = nueva(b, 390, 844, has_touch=True, is_mobile=True, device_scale_factor=2)
     rutas(pg, 'ok')
     pg.goto(BASE + '/'); pg.wait_for_load_state('networkidle'); pg.wait_for_selector('.carrusel.con-fotos .slide.real')
+    hero(pg, 390); hero_orden(pg)
     pg.screenshot(path=CAPT + '/movil-390-portada.png')
     pg.screenshot(path=CAPT + '/movil-390-completa.png', full_page=True)
     pg.locator('#servicios').scroll_into_view_if_needed()
@@ -242,7 +304,7 @@ def pagina_ok(b):
     # deslizar con el dedo (CDP)
     cdp = ctx.new_cdp_session(pg)
     box = pg.locator('.carrusel').nth(0).bounding_box()
-    pg.evaluate("window.scrollTo(0, document.querySelector('.carrusel').getBoundingClientRect().top + scrollY - 100)")
+    pg.evaluate("window.scrollTo({top: document.querySelector('.carrusel').getBoundingClientRect().top + scrollY - 100, behavior: 'instant'})"); time.sleep(.3)
     box = pg.locator('.carrusel').nth(0).bounding_box()
     y = box['y'] + box['height'] / 2
     def swipe(x1, x2):
@@ -285,9 +347,8 @@ def pies(b):
     pg.screenshot(path=CAPT + '/movil-390-pies.png')
     ok(pg.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth'), 'sin scroll horizontal a 390 px con pies largos')
     pg.locator('.titulo-fila').first.scroll_into_view_if_needed(); pg.screenshot(path=CAPT + '/movil-390-titulo-tarjeta.png')
-    for sel in ('.enlace-nombre', '.boton-mini'):
-        bb = pg.locator('.tarjeta').nth(0).locator(sel).bounding_box()
-        ok(bb['height'] >= 43.5 and bb['x'] + bb['width'] <= 390, 'móvil: %s >= 44 px y dentro de pantalla' % sel)
+    bb = pg.locator('.tarjeta').nth(0).locator('.enlace-nombre').bounding_box()
+    ok(bb['height'] >= 43.5 and bb['x'] + bb['width'] <= 390, 'móvil: el nombre de la tarjeta >= 44 px y dentro de pantalla')
     ok(pg.evaluate('window.__csp') == [] and not pe, 'sin CSP ni errores de JS')
     ctx.close()
 
@@ -302,6 +363,10 @@ def escritorio_y_anchos(b):
             ok(sw <= cw, 'sin scroll horizontal a %d px en %s (%d/%d)' % (w, ruta, sw, cw))
         pg.goto(BASE + '/'); pg.wait_for_load_state('networkidle'); time.sleep(.5)
         ok(pg.evaluate('window.__cls') < 0.01, 'CLS a %d px: %.4f' % (w, pg.evaluate('window.__cls')))
+        if w == 768:
+            hero(pg, 768)
+            pg.screenshot(path=CAPT + '/tablet-768-portada.png')
+            pg.screenshot(path=CAPT + '/tablet-768-completa.png', full_page=True)
         if w == 1280:
             pg.screenshot(path=CAPT + '/escritorio-1280-portada.png')
             ok(pg.evaluate("""(() => { const t = [...document.querySelectorAll('.tarjeta')].map(e => e.getBoundingClientRect());
@@ -350,6 +415,7 @@ def sin_js_y_movimiento(b):
     ok(pg.locator('.carrusel button').count() == 0, 'sin JS no hay botones que no funcionen')
     ok(pg.get_attribute('#pide-presupuesto', 'href').startswith('mailto:'), 'el mailto funciona sin JS')
     ok(pg.get_attribute('a.boton-sec >> nth=0', 'href').endswith('/demo'), 'los enlaces funcionan sin JS')
+    ok(pg.get_attribute('#entrada-wildposting', 'href') == WILD + '/demo' and pg.get_attribute('#entrada-carteleria', 'href') == CART + '/demo', 'las dos entradas de la cabecera funcionan sin JS')
     pg.screenshot(path=CAPT + '/movil-390-sin-js.png', full_page=True)
     ctx.close()
     print('Movimiento reducido')
