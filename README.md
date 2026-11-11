@@ -9,10 +9,10 @@ ni formularios, ni analítica. Cómo se publica: [`PUBLICAR.md`](PUBLICAR.md).
 
 | Ruta | Para qué |
 |---|---|
-| `public/index.html` | La portada (cabecera con las dos entradas a los mapas, servicios, cómo funciona, contacto, pie) y los datos para buscadores (JSON-LD) |
+| `public/index.html` | La portada (franja de acceso clientes, cabecera con las dos entradas a los mapas, servicios, cómo funciona, área de clientes `#clientes`, contacto, pie) y los datos para buscadores (JSON-LD) |
 | `public/aviso-legal.html` | Aviso legal con `[RAZÓN SOCIAL]`, `[NIF]`, `[DOMICILIO]` por rellenar |
 | `public/assets/web.css` | Todo el diseño. Colores en `:root` (sacados del logo) |
-| `public/assets/web.js` | Carrusel y contacto. Unos 8,5 KB (3 KB comprimido). **Configuración al principio del fichero** |
+| `public/assets/web.js` | Carrusel, contacto y nota de alta. Unos 10 KB (3,5 KB comprimido; las pruebas exigen menos de 10 KB). **Configuración al principio del fichero** |
 | `public/assets/img/` | Logo, imagen para compartir (`og.png`, 1200×630), iconos y las 6 ilustraciones de relleno (`relleno-*.svg`) |
 | `public/robots.txt`, `public/sitemap.xml`, `public/favicon.ico` | Buscadores y pestaña |
 | `docs/nginx.conf.example` | Reglas nginx (cabeceras de seguridad, caché y «/» → portada), para CloudPanel |
@@ -53,6 +53,28 @@ no se puedan cumplir. Si cambias el título o la descripción, cámbialos tambi�
 - **Teléfono / WhatsApp**: rellena `TELEFONO` en `web.js` (por ejemplo `'+34600123456'`). Mientras esté vacío no se ve
   nada. Al rellenarlo aparece «También por teléfono o WhatsApp: ...» con enlaces `tel:` y `wa.me`. No hace falta tocar
   el HTML. (El teléfono **no** está en el JSON-LD a propósito; si lo quieres allí, añádelo a mano.)
+
+## Acceso clientes y alta de clientes
+
+La web enlaza con el **portal** (`https://portal.tubarriopublicidad.es`), que ya tiene el área de clientes. No hay formularios,
+cookies ni datos de nadie en esta web: solo enlaces.
+
+| Dónde | Qué | Enlace |
+|---|---|---|
+| Franja de arriba de la cabecera (`nav.acceso`), en PC y en móvil | Botón secundario **«Acceso clientes»** | `https://portal.tubarriopublicidad.es/login` (misma pestaña) |
+| Idem | Botón principal **«Solicitar acceso como cliente»** | `https://portal.tubarriopublicidad.es/alta` (misma pestaña) |
+| Sección `#clientes` («Área de clientes»), entre «Cómo funciona» y el contacto | Tres líneas de lo que puede hacer un cliente, «Si ya eres cliente, entra con tu correo y tu contraseña.» y los mismos dos botones | idem |
+| Pie (también en el aviso legal) | «Aviso legal», «Política de privacidad» (`https://portal.tubarriopublicidad.es/privacidad`) y «Acceso clientes» | idem |
+
+**Activar el alta desde la web.** En `public/assets/web.js`, al principio, está `ALTA_WEB_ACTIVA` (`false` por defecto):
+
+- `false` (ahora): «Solicitar acceso como cliente» sigue llevando a `/alta`, que de momento explica que no hay altas y da el contacto; además,
+  junto a los botones (franja de arriba y sección `#clientes`) sale la nota discreta «¿Aún no eres cliente? **Escríbenos**» con enlace al correo
+  (`CORREO`, asunto `ASUNTO_ALTA`) y, si hay `TELEFONO`, también a WhatsApp. Sin JavaScript también se ve la nota (es el valor por defecto).
+- `true` (cuando Daniel active el alta en el portal): la nota desaparece y quedan solo los botones. Cambia `var ALTA_WEB_ACTIVA = false;` por
+  `var ALTA_WEB_ACTIVA = true;` y publica de nuevo (`PUBLICAR.md`, paso 9).
+
+Los botones no se tocan: las direcciones están en `index.html` (y las del pie en `aviso-legal.html`).
 
 ## Ejemplo en vivo
 
@@ -114,7 +136,7 @@ python3 tests/web_test.py [carpeta_de_capturas]
 
 Sirve `public/` en `http://127.0.0.1:8765` con la CSP de producción (`/` y `/portada/…`, como hará nginx) y simula
 Wildposting y Cartelería con `page.route` (`fotos.json` con CORS y fotos de prueba generadas). Comprueba:
-la cabecera (las dos entradas con sus textos exactos, URLs, pestaña nueva, tamaño táctil, foco visible, contraste AA, una al lado de la otra en PC y apiladas en móvil, y que «Conoce nuestros servicios» ya no existe), HTML (sin `style=`, `onclick=`, `<script>` inline, ni dominios externos; `alt`, ancho y alto; canonical, Open Graph,
+los botones de acceso clientes (URLs exactas, misma pestaña, `aria-label`, táctiles, foco, contraste, la nota con `ALTA_WEB_ACTIVA` en `false` y en `true` a 390, 768 y 1280 px, la sección `#clientes` y los enlaces del pie), la cabecera (las dos entradas con sus textos exactos, URLs, pestaña nueva, tamaño táctil, foco visible, contraste AA, una al lado de la otra en PC y apiladas en móvil, y que «Conoce nuestros servicios» ya no existe), HTML (sin `style=`, `onclick=`, `<script>` inline, ni dominios externos; `alt`, ancho y alto; canonical, Open Graph,
 JSON-LD sin dirección ni teléfono; `web.js` < 10 KB), que todos los ficheros enlazados existen desde `/` y desde
 `/portada/`, el carrusel (siguiente, anterior, puntos, teclado, deslizar con el dedo, avance automático, pausa con
 ratón, foco y botón, `prefers-reduced-motion`), el relleno cuando el JSON falla (red caída, error 500, vacío), una

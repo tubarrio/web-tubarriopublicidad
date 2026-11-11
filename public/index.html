@@ -34,6 +34,16 @@
 <a class="saltar" href="#servicios">Saltar al contenido</a>
 
 <header class="portada">
+  <nav class="acceso" aria-label="Área de clientes">
+    <div class="contenedor acceso-in">
+      <a class="acceso-etiqueta" href="#clientes">Área de clientes</a>
+      <div class="acceso-botones">
+        <a class="boton boton-sec" id="cab-acceso" href="https://portal.tubarriopublicidad.es/login" aria-label="Acceso clientes: entra con tu correo y tu contraseña">Acceso clientes</a>
+        <a class="boton" id="cab-solicitar" href="https://portal.tubarriopublicidad.es/alta" aria-label="Solicitar acceso como cliente: formulario de alta">Solicitar acceso como cliente</a>
+      </div>
+      <p class="nota-alta nota-alta-cab">¿Aún no eres cliente? <a class="escribenos" href="mailto:tubarriopublicidad@gmail.com?subject=Quiero%20ser%20cliente">Escríbenos</a><span class="escribenos-wa" hidden> o por <a class="escribenos-wa-enlace" href="#" target="_blank" rel="noopener">WhatsApp</a></span></p>
+    </div>
+  </nav>
   <div class="contenedor portada-in">
     <img class="logo" src="/portada/assets/img/logo-256.png" srcset="/portada/assets/img/logo-128.png 128w, /portada/assets/img/logo-256.png 256w" sizes="(min-width: 760px) 170px, 112px" width="256" height="256" alt="Logotipo de Tu Barrio Publicidad">
     <div class="portada-texto">
@@ -136,6 +146,25 @@
   </div>
 </section>
 
+<section id="clientes" class="seccion" aria-labelledby="t-clientes">
+  <div class="contenedor">
+    <div class="clientes">
+      <h2 id="t-clientes">Área de clientes</h2>
+      <ul class="clientes-lista">
+        <li>Ver tus campañas y tus mapas en directo, con cada punto y su foto.</li>
+        <li>Hacer pedidos de impresión y de distribución.</li>
+        <li>Descargar las fotos de tu campaña.</li>
+      </ul>
+      <p class="clientes-entra">Si ya eres cliente, entra con tu correo y tu contraseña.</p>
+      <div class="acceso-botones acceso-botones-grandes">
+        <a class="boton boton-sec" id="cli-acceso" href="https://portal.tubarriopublicidad.es/login" aria-label="Acceso clientes: entra con tu correo y tu contraseña">Acceso clientes</a>
+        <a class="boton" id="cli-solicitar" href="https://portal.tubarriopublicidad.es/alta" aria-label="Solicitar acceso como cliente: formulario de alta">Solicitar acceso como cliente</a>
+      </div>
+      <p class="nota-alta nota-alta-cli">¿Aún no eres cliente? <a class="escribenos" href="mailto:tubarriopublicidad@gmail.com?subject=Quiero%20ser%20cliente">Escríbenos</a><span class="escribenos-wa" hidden> o por <a class="escribenos-wa-enlace" href="#" target="_blank" rel="noopener">WhatsApp</a></span></p>
+    </div>
+  </div>
+</section>
+
 <section id="contacto" class="seccion" aria-labelledby="t-contacto">
   <div class="contenedor contacto">
     <h2 id="t-contacto">¿Hablamos de tu campaña?</h2>
@@ -150,7 +179,11 @@
 <footer class="pie">
   <div class="contenedor pie-in">
     <p>© Tu Barrio Publicidad</p>
-    <p><a href="/portada/aviso-legal.html">Aviso legal</a></p>
+    <ul class="pie-enlaces">
+      <li><a href="/portada/aviso-legal.html">Aviso legal</a></li>
+      <li><a href="https://portal.tubarriopublicidad.es/privacidad">Política de privacidad</a></li>
+      <li><a id="pie-acceso" href="https://portal.tubarriopublicidad.es/login">Acceso clientes</a></li>
+    </ul>
   </div>
 </footer>
 </body>

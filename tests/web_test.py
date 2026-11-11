@@ -210,6 +210,129 @@ def hero(pg, ancho):
         n = pg.locator('a[href="%s"]' % url).count()
         ok(n == 3, 'la demo %s se enlaza 3 veces (entrada, nombre de la tarjeta y botón grande): %d' % (url, n))
 
+PORTAL = 'https://portal.tubarriopublicidad.es'
+LOGIN, ALTA, PRIVACIDAD = PORTAL + '/login', PORTAL + '/alta', PORTAL + '/privacidad'
+
+def lum_(c):
+    r, g, b = [int(x) / 255 for x in re.findall(r'\d+', c)[:3]]
+    f = lambda v: v / 12.92 if v <= .03928 else ((v + .055) / 1.055) ** 2.4
+    return .2126 * f(r) + .7152 * f(g) + .0722 * f(b)
+
+def contraste(pg, sel):
+    fg, bg = pg.evaluate(r"""s => { const e = document.querySelector(s); const c = getComputedStyle(e).color; let b = getComputedStyle(e).backgroundColor, p = e;
+        while (p && /rgba\(0, 0, 0, 0\)|transparent/.test(b)) { p = p.parentElement; b = getComputedStyle(p).backgroundColor; } return [c, b]; }""", sel)
+    l1, l2 = sorted((lum_(fg), lum_(bg)), reverse=True)
+    return (l1 + .05) / (l2 + .05)
+
+def acceso_clientes(pg, ancho, activa_alta):
+    """Botones de acceso (cabecera y sección #clientes), nota «¿Aún no eres cliente?» y pie."""
+    print('Acceso clientes (%d px, ALTA_WEB_ACTIVA=%s)' % (ancho, 'true' if activa_alta else 'false'))
+    pg.evaluate("window.scrollTo({top: 0, behavior: 'instant'})"); pg.mouse.move(2, 2); time.sleep(.3)
+    for pref in ('cab', 'cli'):
+        a, s = pg.locator('#%s-acceso' % pref), pg.locator('#%s-solicitar' % pref)
+        ok(a.count() == 1 and s.count() == 1, pref + ': existen «Acceso clientes» y «Solicitar acceso como cliente»')
+        ok(a.get_attribute('href') == LOGIN, pref + ': Acceso clientes -> ' + LOGIN)
+        ok(s.get_attribute('href') == ALTA, pref + ': Solicitar acceso -> ' + ALTA)
+        ok(a.inner_text().strip() == 'Acceso clientes' and s.inner_text().strip() == 'Solicitar acceso como cliente', pref + ': textos exactos')
+        ok(a.get_attribute('target') is None and s.get_attribute('target') is None, pref + ': se abren en la misma pestaña')
+        ok('Acceso clientes' in a.get_attribute('aria-label') and 'Solicitar acceso como cliente' in s.get_attribute('aria-label'), pref + ': aria-label incluye el texto visible')
+        ok('boton-sec' in a.get_attribute('class') and 'boton-sec' not in s.get_attribute('class'), pref + ': Acceso = secundario, Solicitar = principal')
+    for id_ in ('cab-acceso', 'cab-solicitar'):
+        a = pg.locator('#' + id_)
+        bb = a.bounding_box()
+        ok(bb['height'] >= 44 and bb['width'] >= 44 and bb['x'] >= 0 and bb['x'] + bb['width'] <= ancho, '%s: visible arriba, táctil >= 44 px y dentro de pantalla (%dx%d)' % (id_, bb['width'], bb['height']))
+        ok(bb['y'] + bb['height'] < pg.evaluate('innerHeight'), id_ + ': se ve sin hacer scroll')
+        a.focus()
+        ok(pg.evaluate("(() => { const s = getComputedStyle(document.activeElement); return s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) >= 3; })()"), id_ + ': foco visible')
+        pg.evaluate("document.activeElement.blur()")
+    ok(contraste(pg, '#cab-acceso') >= 4.5 and contraste(pg, '#cab-solicitar') >= 4.5, 'contraste AA de los botones de la cabecera')
+    ok(pg.locator('nav.acceso').get_attribute('aria-label') == 'Área de clientes', 'franja de acceso con aria-label')
+    # nota
+    notas = pg.locator('.nota-alta')
+    ok(notas.count() == 2, 'hay dos notas (cabecera y sección #clientes)')
+    for i in range(notas.count()):
+        n = notas.nth(i)
+        if activa_alta:
+            ok(n.is_hidden(), 'ALTA_WEB_ACTIVA=true: la nota no se ve (solo el botón)')
+        else:
+            ok(n.is_visible() and ' '.join(n.inner_text().split()).startswith('¿Aún no eres cliente? Escríbenos'), 'ALTA_WEB_ACTIVA=false: nota «¿Aún no eres cliente? Escríbenos» visible')
+            c = n.locator('a.escribenos')
+            ok(c.get_attribute('href') == 'mailto:tubarriopublicidad@gmail.com?subject=Quiero%20ser%20cliente', 'enlace Escríbenos = correo de la constante CORREO: ' + c.get_attribute('href'))
+            bb = c.bounding_box()
+            ok(bb['height'] >= 43.5, 'Escríbenos: objetivo táctil >= 44 px')
+            ok(n.locator('.escribenos-wa').is_hidden(), 'sin TELEFONO no se ofrece WhatsApp')
+    if not activa_alta:
+        ok(contraste(pg, '.nota-alta-cab') >= 4.5 and contraste(pg, '.nota-alta-cli') >= 4.5, 'contraste AA de la nota')
+    # sección #clientes
+    sec = pg.locator('section#clientes')
+    ok(sec.count() == 1 and sec.locator('h2').inner_text() == 'Área de clientes', 'sección #clientes con titular «Área de clientes»')
+    ok(sec.locator('li').count() == 3, 'tres líneas de lo que pueden hacer')
+    txt = ' '.join(sec.inner_text().split())
+    ok('campañas' in txt and 'mapas en directo' in txt and 'pedidos de impresión y de distribución' in txt and 'Descargar las fotos' in txt, 'campañas y mapas, pedidos y fotos')
+    ok('Si ya eres cliente, entra con tu correo y tu contraseña.' in txt, 'texto «Si ya eres cliente, entra con tu correo y tu contraseña.»')
+    pg.evaluate("document.getElementById('clientes').scrollIntoView({behavior: 'instant'})"); time.sleep(.2)
+    for id_ in ('cli-acceso', 'cli-solicitar'):
+        bb = pg.locator('#' + id_).bounding_box()
+        ok(bb['height'] >= 44 and bb['x'] >= 0 and bb['x'] + bb['width'] <= ancho, id_ + ': táctil >= 44 px y dentro de pantalla')
+        pg.locator('#' + id_).focus()
+        ok(pg.evaluate("getComputedStyle(document.activeElement).outlineStyle") != 'none', id_ + ': foco visible')
+    ok(contraste(pg, '.clientes-entra') >= 4.5 and contraste(pg, '.clientes-lista li') >= 4.5 and contraste(pg, '#cli-solicitar') >= 4.5 and contraste(pg, '#cli-acceso') >= 4.5, 'contraste AA de la sección')
+    if not activa_alta: ok(contraste(pg, '.nota-alta-cli a') >= 4.5, 'contraste AA del enlace Escríbenos en la sección')
+    pg.screenshot(path=CAPT + '/%s-%d-clientes-alta-%s.png' % ('movil' if ancho < 760 else ('tablet' if ancho < 1000 else 'escritorio'), ancho, 'activa' if activa_alta else 'no'))
+    # pie
+    pie = pg.locator('footer.pie')
+    hrefs = pg.eval_on_selector_all('footer.pie a', 'els => els.map(e => [e.textContent.trim(), e.getAttribute("href")])')
+    ok(hrefs == [['Aviso legal', '/portada/aviso-legal.html'], ['Política de privacidad', PRIVACIDAD], ['Acceso clientes', LOGIN]], 'pie: Aviso legal, Política de privacidad y Acceso clientes ' + str(hrefs))
+    for i in range(3):
+        ok(pie.locator('a').nth(i).bounding_box()['height'] >= 43.5, 'pie: enlace %d táctil >= 44 px' % (i + 1))
+    ok(pg.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth'), 'sin scroll horizontal')
+
+def acceso_estatico():
+    html = open(os.path.join(PUBLIC, 'index.html'), encoding='utf-8').read()
+    legal = open(os.path.join(PUBLIC, 'aviso-legal.html'), encoding='utf-8').read()
+    js = open(os.path.join(PUBLIC, 'assets', 'web.js'), encoding='utf-8').read()
+    print('Acceso clientes: HTML y configuración')
+    ok(re.search(r'var ALTA_WEB_ACTIVA = false;', js) is not None, 'ALTA_WEB_ACTIVA existe y vale false por defecto')
+    ok(html.count('href="%s"' % LOGIN) == 3 and html.count('href="%s"' % ALTA) == 2, 'index: 3 enlaces al login (cabecera, sección y pie) y 2 al alta')
+    ok('href="%s"' % PRIVACIDAD in html and 'href="%s"' % PRIVACIDAD in legal, 'política de privacidad enlazada en el pie de index y del aviso legal')
+    ok(not re.search(r'(?<![\w.])\+?\d[\d ]{8,}\d', html.replace('1200', '').replace('630', '')) , 'sin teléfonos escritos en el HTML')
+    ok('document.cookie' not in js and 'localStorage' not in js and 'sessionStorage' not in js, 'sin cookies ni almacenamiento nuevos')
+    ok('hidden' in js and 'ALTA_WEB_ACTIVA' in js, 'el JS usa la constante')
+
+def acceso_con_constantes(b):
+    for activa_alta in (False, True):
+        for ancho in (390, 768, 1280):
+            ctx, pg, errs, pe = nueva(b, ancho, 844 if ancho < 760 else 900)
+            js = open(os.path.join(PUBLIC, 'assets', 'web.js'), encoding='utf-8').read()
+            if activa_alta: js = js.replace('var ALTA_WEB_ACTIVA = false;', 'var ALTA_WEB_ACTIVA = true;')
+            pg.route(BASE + '/portada/assets/web.js', (lambda cuerpo: lambda r: r.fulfill(status=200, content_type='application/javascript', body=cuerpo))(js))
+            rutas(pg, 'ok')
+            pg.goto(BASE + '/'); pg.wait_for_load_state('networkidle'); time.sleep(.4)
+            acceso_clientes(pg, ancho, activa_alta)
+            pg.evaluate("window.scrollTo({top: 0, behavior: 'instant'})"); time.sleep(.2)
+            pg.screenshot(path=CAPT + '/%s-%d-cabecera-alta-%s.png' % ('movil' if ancho < 760 else ('tablet' if ancho < 1000 else 'escritorio'), ancho, 'activa' if activa_alta else 'no'))
+            if activa_alta is False and ancho == 390:
+                pg.screenshot(path=CAPT + '/movil-390-completa-acceso.png', full_page=True)
+                pg.evaluate("window.scrollTo({top: document.body.scrollHeight, behavior: 'instant'})"); time.sleep(.4)
+                pg.screenshot(path=CAPT + '/movil-390-pie.png')
+            ok(pg.evaluate('window.__csp') == [] and not pe, 'sin violaciones de CSP ni errores de JS')
+            ok(not [e for e in errs if 'Content Security' in e or 'Refused' in e], 'sin errores de CSP en consola')
+            ctx.close()
+    # con teléfono: Escríbenos ofrece también WhatsApp
+    ctx, pg, errs, pe = nueva(b, 390, 844)
+    js = open(os.path.join(PUBLIC, 'assets', 'web.js'), encoding='utf-8').read().replace("var TELEFONO = '';", "var TELEFONO = '+34 600 123 456';")
+    pg.route(BASE + '/portada/assets/web.js', lambda r: r.fulfill(status=200, content_type='application/javascript', body=js))
+    rutas(pg, 'caido'); pg.goto(BASE + '/'); pg.wait_for_load_state('networkidle')
+    w = pg.locator('.nota-alta-cab .escribenos-wa-enlace')
+    ok(w.is_visible() and w.get_attribute('href') == 'https://wa.me/34600123456', 'con TELEFONO la nota ofrece WhatsApp: ' + str(w.get_attribute('href')))
+    ok(w.bounding_box()['height'] >= 43.5, 'WhatsApp de la nota: táctil >= 44 px')
+    ctx.close()
+    # sin JS: la nota (valor por defecto false) y los botones siguen ahí
+    ctx = b.new_context(viewport={'width': 390, 'height': 844}, java_script_enabled=False)
+    pg = ctx.new_page(); rutas(pg, 'ok'); pg.goto(BASE + '/'); pg.wait_for_load_state('load')
+    ok(pg.get_attribute('#cab-acceso', 'href') == LOGIN and pg.get_attribute('#cab-solicitar', 'href') == ALTA and pg.locator('.nota-alta').first.is_visible(), 'sin JS: botones y nota (comportamiento por defecto) funcionan')
+    ctx.close()
+
 def hero_orden(pg):
     ok(pg.evaluate("""() => { const q = s => document.querySelector(s).getBoundingClientRect().top;
         return q('header .logo') < q('.mapas h2') && q('.mapas h2') < q('#entrada-wildposting') && q('#entrada-carteleria') < q('#servicios'); }"""), 'orden: logo, titular, entradas y después «Nuestros servicios»')
@@ -256,7 +379,7 @@ def pagina_ok(b):
     # nombres accesibles
     ok(pg.locator('.carrusel').nth(0).locator('button[aria-label]').count() >= 6, 'botones con aria-label')
     # botones de enlace
-    h = pg.eval_on_selector_all('a.boton-sec', "els => els.map(e => [e.href, e.target, e.rel])")
+    h = pg.eval_on_selector_all('.tarjeta a.boton-sec', "els => els.map(e => [e.href, e.target, e.rel])")
     ok(h == [[WILD + '/demo', '_blank', 'noopener'], [CART + '/demo', '_blank', 'noopener']], 'Ver ejemplo en vivo: URLs, pestaña nueva y noopener ' + str(h))
     ok(pg.locator('text=Sin registro: es el seguimiento real de una campaña de ejemplo').count() == 2, 'frase «Sin registro…» bajo cada ejemplo')
     ok(pg.get_attribute('#pide-presupuesto', 'href') == 'mailto:tubarriopublicidad@gmail.com?subject=Quiero%20presupuesto', 'mailto del botón Pide presupuesto')
@@ -414,7 +537,7 @@ def sin_js_y_movimiento(b):
     ok(pg.locator('.carrusel img').first.evaluate('i => i.complete && i.naturalWidth > 0'), 'la primera imagen se ve')
     ok(pg.locator('.carrusel button').count() == 0, 'sin JS no hay botones que no funcionen')
     ok(pg.get_attribute('#pide-presupuesto', 'href').startswith('mailto:'), 'el mailto funciona sin JS')
-    ok(pg.get_attribute('a.boton-sec >> nth=0', 'href').endswith('/demo'), 'los enlaces funcionan sin JS')
+    ok(pg.get_attribute('.tarjeta a.boton-sec >> nth=0', 'href').endswith('/demo'), 'los enlaces funcionan sin JS')
     ok(pg.get_attribute('#entrada-wildposting', 'href') == WILD + '/demo' and pg.get_attribute('#entrada-carteleria', 'href') == CART + '/demo', 'las dos entradas de la cabecera funcionan sin JS')
     pg.screenshot(path=CAPT + '/movil-390-sin-js.png', full_page=True)
     ctx.close()
@@ -445,10 +568,11 @@ def telefono(b):
 
 def main():
     estatico()
+    acceso_estatico()
     srv = servir()
     with sync_playwright() as p:
         b = p.chromium.launch(executable_path=CHROMIUM, args=['--no-sandbox', '--disable-gpu'])
-        for f in (pagina_ok, pies, escritorio_y_anchos, fallbacks, sin_js_y_movimiento, telefono):
+        for f in (pagina_ok, pies, escritorio_y_anchos, fallbacks, sin_js_y_movimiento, telefono, acceso_con_constantes):
             f(b)
         b.close()
     srv.shutdown()
