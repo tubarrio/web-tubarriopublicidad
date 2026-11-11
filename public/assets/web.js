@@ -6,6 +6,8 @@
   /* ===== CONFIGURACIÓN: el único sitio donde cambiar contacto y fotos ===== */
   var CORREO = 'tubarriopublicidad@gmail.com';   // correo del botón «Pide presupuesto»
   var ASUNTO = 'Quiero presupuesto';             // asunto que sale precargado
+  var ALTA_WEB_ACTIVA = false;                   // true cuando el alta de clientes desde la web esté abierta (oculta «¿Aún no eres cliente? Escríbenos»)
+  var ASUNTO_ALTA = 'Quiero ser cliente';        // asunto del correo de «Escríbenos»
   var TELEFONO = '';                             // p. ej. '+34600123456' (con prefijo, sin espacios). Vacío = oculto
   var MAX_FOTOS = 8;                             // fotos reales por carrusel
   var INTERVALO = 5000;                          // milisegundos entre fotos (avance automático)
@@ -21,10 +23,21 @@
     return e;
   }
 
+  /* ---------- «¿Aún no eres cliente? Escríbenos» (solo mientras el alta web no esté activa) ---------- */
+  function avisoAlta() {
+    [].forEach.call(document.querySelectorAll('.nota-alta'), function (n) {
+      if (ALTA_WEB_ACTIVA) { n.hidden = true; return; }
+      var c = n.querySelector('.escribenos'), w = n.querySelector('.escribenos-wa'), a = n.querySelector('.escribenos-wa-enlace');
+      if (c && CORREO) c.href = 'mailto:' + CORREO + '?subject=' + encodeURIComponent(ASUNTO_ALTA);
+      if (TELEFONO && w && a) { a.href = 'https://wa.me/' + TELEFONO.replace(/\D/g, ''); w.hidden = false; }
+    });
+  }
+
   /* ---------- Contacto ---------- */
   function contacto() {
     var b = document.getElementById('pide-presupuesto');
     if (b && CORREO) b.href = 'mailto:' + CORREO + '?subject=' + encodeURIComponent(ASUNTO);
+    avisoAlta();
     if (!TELEFONO) return;
     var caja = document.getElementById('bloque-telefono');
     var t = document.getElementById('enlace-telefono');

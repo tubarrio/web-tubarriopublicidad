@@ -287,6 +287,15 @@ sudo chown -R tubarriopublicidad:tubarriopublicidad /home/tubarriopublicidad/htd
 
 ---
 
+### Activar el alta de clientes desde la web (cuando lo decida Daniel)
+
+Los botones «Acceso clientes» y «Solicitar acceso como cliente» ya salen en la web. Mientras el alta del portal esté desactivada se ve
+debajo la nota «¿Aún no eres cliente? Escríbenos». Cuando actives el alta en el portal (y hayas revisado la política con tu gestor), en
+`public/assets/web.js` cambia `var ALTA_WEB_ACTIVA = false;` por `var ALTA_WEB_ACTIVA = true;`, une el cambio en GitHub y repite el
+paso 9 (el `pull`, el `cp -r` y el `chown`). No hace falta tocar nginx ni WordPress.
+
+---
+
 ## Si prefieres no tocar nginx (alternativa)
 
 - **La portada se queda en `https://tubarriopublicidad.es/portada/`** (paso 4, sin el 5) y tú la enlazas a mano: en WordPress → Apariencia → Menús → «Enlaces personalizados» con esa dirección, o un botón en tu página de inicio actual. Funciona sin cambiar nada del servidor.
